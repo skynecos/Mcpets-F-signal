@@ -8,7 +8,10 @@ ile kullanılan tek manuel yeteneğini, oyuncunun el değiştirme tuşuna (`F`) 
 - Aktif ve yüklü bir petin `Signals.Values` listesinde sinyal varsa ilk sinyal gönderilir.
 - Sinyal başarıyla MCPets'e iletildiğinde el değiştirme işlemi iptal edilir.
 - Pet yoksa, pet yüklü değilse veya sinyal tanımlı değilse `F` normal çalışır.
-- Birden fazla aktif pet varsa yalnızca sinyali bulunan ilk aktif pet çalıştırılır.
+- Bir companion ve bir mount aynı anda aktifse, oyuncu binerken mount; yaya iken
+  companion yeteneği öncelikli çalışır.
+- Kullanılan MCPets sürümünde mount bilgisi okunamazsa ilk uyumlu aktif pet güvenli
+  geri dönüş olarak seçilir.
 - MythicMobs tarafındaki mevcut koşullar ve cooldownlar değiştirilmez.
 - İstemci modu veya kaynak paketi gerektirmez.
 

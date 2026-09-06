@@ -8,7 +8,7 @@ import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 /**
  * Keeps vanilla F behavior unless MCPets actually accepts a pet ability cast.
  */
-final class PetKeyListener implements Listener {
+public final class PetKeyListener implements Listener {
 
     private final MCPetsBridge bridge;
 
@@ -18,7 +18,7 @@ final class PetKeyListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onSwapHands(final PlayerSwapHandItemsEvent event) {
-        if (bridge.castFirstAvailableSignal(event.getPlayer().getUniqueId())) {
+        if (bridge.castFirstAvailableSignal(event.getPlayer())) {
             event.setCancelled(true);
         }
     }

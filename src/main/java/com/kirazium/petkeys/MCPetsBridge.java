@@ -2,6 +2,7 @@ package com.kirazium.petkeys;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -9,6 +10,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.bukkit.entity.Player;
 
 /**
  * Reflection keeps this addon independent from a specific MCPets JAR build.
@@ -51,9 +53,10 @@ final class MCPetsBridge {
         }
     }
 
-    boolean castFirstAvailableSignal(final UUID playerId) {
+    boolean castFirstAvailableSignal(final Player player) {
         try {
-            for (final Object pet : activePets(playerId)) {
+            final List<PetAction> actions = new ArrayList<>();
+            for (final Object pet : activePets(player.getUniqueId())) {
                 if (pet == null) {
                     continue;
                 }
@@ -67,14 +70,35 @@ final class MCPetsBridge {
                 if (signal == null) {
                     continue;
                 }
-
-                methods.sendSignal(pet, signal);
-                return true;
+                actions.add(new PetAction(pet, methods, signal, methods.isMountable(pet)));
             }
+
+            if (actions.isEmpty()) {
+                return false;
+            }
+
+            final PetAction selected = selectAction(actions, player.isInsideVehicle());
+            selected.methods().sendSignal(selected.pet(), selected.signal());
+            return true;
         } catch (ReflectiveOperationException | RuntimeException exception) {
             reportOnce(exception);
         }
         return false;
+    }
+
+    private PetAction selectAction(final List<PetAction> actions, final boolean playerIsRiding) {
+        if (actions.size() == 1) {
+            return actions.get(0);
+        }
+
+        // A player may have one companion and one mount active at once. While riding,
+        // prefer the mount ability; on foot, prefer the companion ability.
+        for (final PetAction action : actions) {
+            if (action.mountable() != null && action.mountable() == playerIsRiding) {
+                return action;
+            }
+        }
+        return actions.get(0);
     }
 
     private List<?> activePets(final UUID playerId)
@@ -108,7 +132,19 @@ final class MCPetsBridge {
             // Older MCPets builds do not require this guard.
         }
 
-        final PetMethods discovered = new PetMethods(getSignals, sendSignal, isStillHere);
+        Method isMountable = null;
+        try {
+            isMountable = petClass.getMethod("isMountable");
+        } catch (NoSuchMethodException ignored) {
+            // Optional preference only; first compatible pet remains the fallback.
+        }
+
+        final PetMethods discovered = new PetMethods(
+                getSignals,
+                sendSignal,
+                isStillHere,
+                isMountable
+        );
         final PetMethods raced = methodCache.putIfAbsent(petClass, discovered);
         return raced == null ? discovered : raced;
     }
@@ -126,7 +162,15 @@ final class MCPetsBridge {
         }
     }
 
-    private record PetMethods(Method getSignals, Method sendSignal, Method isStillHere) {
+    private record PetAction(Object pet, PetMethods methods, String signal, Boolean mountable) {
+    }
+
+    private record PetMethods(
+            Method getSignals,
+            Method sendSignal,
+            Method isStillHere,
+            Method isMountable
+    ) {
 
         boolean isStillHere(final Object pet)
                 throws InvocationTargetException, IllegalAccessException {
@@ -135,6 +179,15 @@ final class MCPetsBridge {
             }
             final Object result = isStillHere.invoke(pet);
             return !(result instanceof Boolean value) || value;
+        }
+
+        Boolean isMountable(final Object pet)
+                throws InvocationTargetException, IllegalAccessException {
+            if (isMountable == null) {
+                return null;
+            }
+            final Object result = isMountable.invoke(pet);
+            return result instanceof Boolean value ? value : null;
         }
 
         String firstSignal(final Object pet)

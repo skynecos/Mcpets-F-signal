@@ -1,0 +1,38 @@
+name: Release v1.0.0
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/release.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@v4
+
+      - name: Java 17 kur
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: JAR derle
+        run: mvn --batch-mode --no-transfer-progress clean package
+
+      - name: v1.0.0 Release oluştur
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v1.0.0 target/KiraziumPetKeys-1.0.0.jar \
+            --repo "${{ github.repository }}" \
+            --target "${{ github.sha }}" \
+            --title "KiraziumPetKeys v1.0.0" \
+            --notes "MCPets petlerinin manuel Signal yeteneklerini F tuşuyla çalıştıran ilk kararlı sürüm. Java 17 veya üzeri ve MCPets gerektirir."
